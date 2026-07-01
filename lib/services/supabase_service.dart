@@ -45,14 +45,6 @@ class SupabaseService {
         })
         .eq('id', id);
   }
-
-  Future<void> deleteClient(String id) async {
-    await supabase
-        .from('clients')
-        .delete()
-        .eq('id', id);
-  }
-
   // =========================
   // PRODUTOS
   // =========================
@@ -96,12 +88,6 @@ class SupabaseService {
         .eq('id', id);
   }
 
-  Future<void> deleteProduct(String id) async {
-    await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-  }
 
   // =========================
   // VENDAS
@@ -132,18 +118,15 @@ class SupabaseService {
               clients!fk_sales_client(*),
               products!fk_sales_product(*)
             ''')
-            .neq('status', 'concluido'); // <-- ADICIONE ESTA LINHA AQUI
+            .neq('status', 'concluido');
 
         return List<Map<String, dynamic>>.from(response);
       }
 
-    Future<void> deleteSale(String id) async {
-        // Em vez de delete(), usamos update() para não disparar o erro do banco de dados!
-        await supabase
-            .from('sales')
-            .update({'status': 'concluido'})
-            .eq('id', id);
-      }
+  // Função para apagar um registo de Venda
+    Future<void> deleteSale(String saleId) async {
+      await supabase.from('sales').delete().eq('id', saleId);
+    }
 
   // =========================
   // DASHBOARD
@@ -363,12 +346,12 @@ class SupabaseService {
         }
       }
     Future<void> updateSale({
-      required int id,
+      required String id, // Altere de int para String
       required String clientId,
       required String productId,
       required int quantity,
       required int durationDays,
-    }) async {
+    }) async { 
       await supabase
           .from('sales')
           .update({
@@ -377,7 +360,24 @@ class SupabaseService {
             'quantity': quantity,
             'duration_days': durationDays,
           })
-          .eq('id', id);
+          .eq('id', id); // Agora o id é String e vai bater com o UUID do Supabase
     }
-  
+      // Função para apagar um Produto
+    Future<void> deleteProduct(String id) async {
+      await supabase.from('products').delete().eq('id', id);
+    }
+
+    // Função para apagar um Cliente
+    Future<void> deleteClient(String id) async {
+      await supabase.from('clients').delete().eq('id', id);
+    }
+    // Adicione este método dentro da classe SupabaseService
+    Future<List<Map<String, dynamic>>> getClientsWithSales() async {
+      // .select('*, sales(*)') diz ao Supabase: 
+      // "Me traga todos os clientes e todas as vendas relacionadas a eles"
+      return await supabase
+          .from('clients')
+          .select('*, sales(*)');
+    }
+      
 }

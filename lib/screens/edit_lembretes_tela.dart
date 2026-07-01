@@ -4,19 +4,20 @@ import '../models/clientes.dart';
 import '../models/produtos.dart';
 import '../services/supabase_service.dart';
 
-class EditVendaTela extends StatefulWidget {
-  final Map<String, dynamic> venda;
+class EditLembreteTela extends StatefulWidget {
+  final Map<String, dynamic> venda; // A definição do campo
 
-  const EditVendaTela({
-    super.key,
+  // O CONSTRUTOR DEVE ESTAR ASSIM:
+  const EditLembreteTela({
+    super.key, 
     required this.venda,
   });
 
   @override
-  State<EditVendaTela> createState() => _EditVendaTelaState();
+  State<EditLembreteTela> createState() => _EditLembreteTelaState();
 }
 
-class _EditVendaTelaState extends State<EditVendaTela> {
+class _EditLembreteTelaState extends State<EditLembreteTela> {
   Client? selectedClient;
   Product? selectedProduct;
 

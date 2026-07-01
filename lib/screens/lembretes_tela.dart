@@ -1,3 +1,4 @@
+import 'package:commerce_mvp/screens/edit_lembretes_tela.dart';
 import 'package:flutter/material.dart';
 
 import '../services/supabase_service.dart';
@@ -252,7 +253,11 @@ class _LembretesTelaState extends State<LembretesTela> {
                                 final reminderDate = saleDate.add(Duration(days: venda['duration_days']));
                                 final daysLeft = reminderDate.difference(DateTime.now()).inDays;
 
-                                return ListTile(
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                  elevation: 3,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  child: ListTile(
                                   title: Text(venda['clients']['name'].toString()),
                                   subtitle: Text(
                                     'Produto: ${venda['products']['name']}\n'
@@ -260,70 +265,25 @@ class _LembretesTelaState extends State<LembretesTela> {
                                   ),
                                   trailing: PopupMenuButton<String>(
                                     onSelected: (value) async {
-                                      switch (value) {
-                                        case 'editar':
-                                          // abrir ecrã de edição
-                                          break;
+                                      if (value == 'editar') {
+                                        // 1. Abre a tela de edição passando a venda atual
+                                        final atualizou = await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => EditLembreteTela(venda: venda),
+                                          ),
+                                        );
 
-                                        case 'feito':
-                                          final confirmar = await showDialog<bool>(
-                                            context: context,
-                                            builder: (_) => AlertDialog(
-                                              title: const Text('Concluir lembrete'),
-                                              content: const Text('Deseja marcar este lembrete como concluído?'),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.pop(context, false),
-                                                  child: const Text('Cancelar'),
-                                                ),
-                                                ElevatedButton(
-                                                  onPressed: () => Navigator.pop(context, true),
-                                                  child: const Text('Concluir'),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-
-                                          if (confirmar == true) {
-                                            // AJUSTE DE SEGURANÇA: Mostra no console do VS Code tudo que tem dentro da venda
-                                            print("Dados da venda selecionada: $venda");
-
-                                            if (venda['id'] == null) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text('Erro: O ID desta venda veio nulo do banco de dados!'),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
-                                              break; // Aborta a operação se for nulo para não travar
-                                            }
-
-                                            setState(() {
-                                              loading = true;
-                                            });
-
-                                            try {
-                                              await _service.deleteSale(venda['id']);
-                                              await carregarLembretes();
-                                            } catch (e) {
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('Erro ao concluir lembrete: $e')),
-                                                );
-                                              }
-                                            } finally {
-                                              if (mounted) {
-                                                setState(() {
-                                                  loading = false;
-                                                });
-                                              }
-                                            }
-                                          }
-                                          break;
+                                        // 2. Se ao voltar a tela sinalizar sucesso, recarrega a lista
+                                        if (atualizou == true) {
+                                          carregarLembretes();
+                                        }
+                                      } else if (value == 'feito') {
+                                        // Lógica para marcar como feito...
                                       }
                                     },
-                                    itemBuilder: (_) => const [
-                                      PopupMenuItem(
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
                                         value: 'editar',
                                         child: Row(
                                           children: [
@@ -333,7 +293,7 @@ class _LembretesTelaState extends State<LembretesTela> {
                                           ],
                                         ),
                                       ),
-                                      PopupMenuItem(
+                                      const PopupMenuItem(
                                         value: 'feito',
                                         child: Row(
                                           children: [
@@ -345,6 +305,7 @@ class _LembretesTelaState extends State<LembretesTela> {
                                       ),
                                     ],
                                   ),
+                                  )
                                 );
                               },
                             ),

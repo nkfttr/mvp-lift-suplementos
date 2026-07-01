@@ -8,7 +8,7 @@ import 'ClienteDetalhesTela.dart';
 import 'add_clientes_tela.dart';
 import 'edit_clientes_tela.dart';
 
-// 1. Criamos o Enum para os filtros
+// Enum para os filtros
 enum FiltroCliente { todos, top5, visitantes }
 
 class ClientsScreen extends StatefulWidget {
@@ -20,10 +20,7 @@ class ClientsScreen extends StatefulWidget {
 
 class _ClientsScreenState extends State<ClientsScreen> {
   String search = "";
-  
-  // 2. Variável para controlar qual filtro está selecionado
   FiltroCliente filtroAtual = FiltroCliente.todos;
-
   final supabaseService = SupabaseService();
 
   @override
@@ -46,7 +43,6 @@ class _ClientsScreenState extends State<ClientsScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // PESQUISA
             TextField(
               decoration: InputDecoration(
                 hintText: "Pesquisar cliente...",
@@ -55,122 +51,73 @@ class _ClientsScreenState extends State<ClientsScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onChanged: (value) {
-                setState(() {
-                  search = value;
-                });
-              },
+              onChanged: (value) => setState(() => search = value),
             ),
-
-            const SizedBox(height: 12),
-
-            // 3. BARRA DE FILTROS (ChoiceChips)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFiltroChip('Todos', FiltroCliente.todos),
-                  const SizedBox(width: 8),
-                  _buildFiltroChip('Top 5 🏆', FiltroCliente.top5),
-                  const SizedBox(width: 8),
-                  _buildFiltroChip('Visitantes 🚶', FiltroCliente.visitantes),
-                ],
-              ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              children: [
+                _buildFiltroChip("Todos", FiltroCliente.todos),
+                _buildFiltroChip("Top 5", FiltroCliente.top5),
+                _buildFiltroChip("Visitantes", FiltroCliente.visitantes),
+              ],
             ),
-
-            const SizedBox(height: 12),
-
+            const SizedBox(height: 16),
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: supabaseService.getClients(),
+                future: supabaseService.getClientsWithSales(), // Use a nova função
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
+                    return const Center(child: CircularProgressIndicator());
                   }
-
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Text('Erro: ${snapshot.error}'),
-                    );
-                  }
-
-                  final clients = snapshot.data ?? [];
-
-                  // 4. LÓGICA DE FILTRAGEM E ORDENAÇÃO
-                  // Primeiro, aplicamos o filtro de texto (Pesquisa)
-                  var clientesFilter = clients.where((client) {
-                    final name = client['name'].toString().toLowerCase();
-                    return name.contains(search.toLowerCase());
+                  
+                  final data = snapshot.data ?? [];
+                  
+                  // 1. Converter Map para objeto Client e contar vendas
+                  var listaProcessada = data.map((m) {
+                    final cliente = Client.fromMap(m);
+                    final vendas = (m['sales'] as List<dynamic>?) ?? [];
+                    return {'client': cliente, 'vendas_count': vendas.length};
                   }).toList();
 
-                  // Em seguida, aplicamos o filtro selecionado nos botões (Top 5 ou Visitantes)
+                  // 2. Aplicar os filtros
                   if (filtroAtual == FiltroCliente.top5) {
-                    // Ordena do maior comprador para o menor (Certifique-se de que o campo 'total_comprado' exista no seu DB)
-                    clientesFilter.sort((a, b) {
-                      double valorA = (a['total_comprado'] ?? 0.0).toDouble();
-                      double valorB = (b['total_comprado'] ?? 0.0).toDouble();
-                      return valorB.compareTo(valorA);
-                    });
-                    // Pega apenas os 5 primeiros
-                    clientesFilter = clientesFilter.take(5).toList();
-
+                    listaProcessada.sort((a, b) => (b['vendas_count'] as int).compareTo(a['vendas_count'] as int));
+                    listaProcessada = listaProcessada.take(5).toList();
                   } else if (filtroAtual == FiltroCliente.visitantes) {
-                    // Filtra apenas clientes que têm total_comprado igual a 0 ou nulo
-                    clientesFilter = clientesFilter.where((client) {
-                      double valorComprado = (client['total_comprado'] ?? 0.0).toDouble();
-                      return valorComprado == 0.0;
-                    }).toList();
+                    listaProcessada = listaProcessada.where((item) => (item['vendas_count'] as int) == 0).toList();
                   }
 
-                  if (clientesFilter.isEmpty) {
-                    return const Center(
-                      child: Text("Nenhum cliente encontrado"),
-                    );
-                  }
+                  // 3. Filtrar por pesquisa de nome
+                  listaProcessada = listaProcessada.where((item) {
+                    final c = item['client'] as Client;
+                    return c.name.toLowerCase().contains(search.toLowerCase());
+                  }).toList();
 
                   return ListView.builder(
-                    itemCount: clientesFilter.length,
-                    itemBuilder: (_, index) {
-                      final clientMap = clientesFilter[index];
-
-                      final client = Client(
-                        id: clientMap['id'],
-                        name: clientMap['name'],
-                        phone: clientMap['phone'],
-                        address: clientMap['address'] as String?,
-                      );
+                    itemCount: listaProcessada.length,
+                    itemBuilder: (context, index) {
+                      final item = listaProcessada[index];
+                      final cliente = item['client'] as Client;
+                      final count = item['vendas_count'] as int;
 
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
-                          leading: const Icon(Icons.person),
-                          title: Text(client.name),
-                          subtitle: Text(client.phone),
+                          title: Text(cliente.name),
+                          subtitle: Text("Compras realizadas: $count"),
+                          trailing: count > 0 ? const Icon(Icons.star, color: Colors.amber) : null,
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => ClienteDetalhesTela(
-                                  client: client,
-                                ),
+                                // Esta é a tela que mostra o histórico de compras e permite editar
+                                builder: (_) => ClienteDetalhesTela(client: cliente),
                               ),
-                            );
+                            ).then((_) {
+                              // Ao voltar desta tela, recarrega a lista para mostrar mudanças (como nomes editados)
+                              setState(() {});
+                            });
                           },
-                          trailing: IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => EditClientScreen(
-                                    client: client,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
                         ),
                       );
                     },
@@ -189,9 +136,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
             onPressed: () async {
               await Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const AddClientScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const AddClientScreen()),
               );
               setState(() {});
             },
@@ -203,9 +148,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const AddVendasTela(),
-                ),
+                MaterialPageRoute(builder: (_) => const AddVendasTela()),
               );
             },
             child: const Icon(Icons.point_of_sale),
@@ -215,18 +158,13 @@ class _ClientsScreenState extends State<ClientsScreen> {
     );
   }
 
-  // Widget auxiliar para os botões de filtro
   Widget _buildFiltroChip(String label, FiltroCliente valor) {
     return ChoiceChip(
       label: Text(label),
       selected: filtroAtual == valor,
       selectedColor: const Color.fromARGB(255, 139, 71, 68).withOpacity(0.3),
       onSelected: (selected) {
-        if (selected) {
-          setState(() {
-            filtroAtual = valor;
-          });
-        }
+        if (selected) setState(() => filtroAtual = valor);
       },
     );
   }

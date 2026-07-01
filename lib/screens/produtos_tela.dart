@@ -166,36 +166,78 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: ListTile(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => EditProductScreen(
-                                  product: product,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditProductScreen(product: product),
+                          ),
+                        ).then((_) {
+                          setState(() {});
+                        });
+                      },
+                      leading: _buildProductImage(product.imagePath),
+                      title: Text(
+                        product.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        "R\$ ${product.price.toStringAsFixed(2)}\n"
+                        "📦 ${product.quantity} unidades",
+                      ),
+                      isThreeLine: true,
+                      
+                      // ---> ADICIONE ESTE BLOCO TRAILING AQUI <---
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () async {
+                          // 1. Mostra caixa de confirmação
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text("Apagar Produto?"),
+                              content: Text("Tem a certeza que deseja apagar '${product.name}'?"),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text("Cancelar"),
                                 ),
-                              ),
-                            ).then((_) {
-                              setState(() {});
-                            });
-                          },
-                          
-                          // REATIVADO E ATUALIZADO: Chama a nossa função segura com tratamento de erro
-                          leading: _buildProductImage(product.imagePath),
-
-                          title: Text(
-                            product.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
+                                ElevatedButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                  child: const Text("Apagar", style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
                             ),
-                          ),
+                          );
 
-                          subtitle: Text(
-                            "R\$ ${product.price.toStringAsFixed(2)}\n"
-                            "📦 ${product.quantity} unidades",
-                          ),
-
-                          isThreeLine: true,
-                        ),
+                          // 2. Se o utilizador confirmar, tenta apagar
+                          if (confirm == true) {
+                            try {
+                              await supabaseService.deleteProduct(product.id);
+                              setState(() {}); // Recarrega a lista
+                              
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("Produto apagado com sucesso!"), backgroundColor: Colors.green),
+                                );
+                              }
+                            } catch (e) {
+                              // 3. Tratamento de erro caso o produto já tenha vendas registadas
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Não é possível apagar: Este produto já está associado a vendas/lembretes."),
+                                    backgroundColor: Colors.red,
+                                    duration: Duration(seconds: 4),
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                      ),
+                    ),
                       );
                     },
                   );
