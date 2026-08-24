@@ -1,10 +1,12 @@
-
 import 'package:flutter/material.dart';
 
 import '../models/clientes.dart';
 import '../models/produtos.dart';
 import '../models/venda.dart';
 import '../services/supabase_service.dart';
+import '../services/fiscal_service.dart'; //  interface
+import '../services/mock_fiscal_service.dart'; //  Mock
+import '../utils/pdf_helper.dart';
 
 class AddVendasTela extends StatefulWidget {
   const AddVendasTela({super.key});
@@ -24,6 +26,9 @@ class _AddVendasTelaState extends State<AddVendasTela> {
   List<Product> produtos = [];
 
   bool loading = true;
+
+  // Instância do serviço fiscal
+  final FiscalService _fiscalService = MockFiscalService();
 
   @override
   void initState() {
@@ -83,13 +88,18 @@ class _AddVendasTelaState extends State<AddVendasTela> {
         durationDays <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            "Preencha todos os campos corretamente",
-          ),
+          content: Text("Preencha todos os campos corretamente"),
         ),
       );
       return;
     }
+
+    // Exibe o Loading que bloqueará a tela durante as operações
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
 
     try {
       final venda = Venda(
@@ -100,6 +110,7 @@ class _AddVendasTelaState extends State<AddVendasTela> {
         duracao: Duration(days: durationDays),
       );
 
+      // 1. Salva no banco de dados primeiro
       await SupabaseService().addSale(
         clientId: venda.cliente.id,
         productId: venda.produto.id,
@@ -107,21 +118,63 @@ class _AddVendasTelaState extends State<AddVendasTela> {
         durationDays: venda.duracao.inDays,
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Venda salva com sucesso!"),
+      // 2. Monta os dados para a API Fiscal
+      final dadosVenda = {
+        'total': (selectedProduct!.price * quantity),
+        'cliente': selectedClient!.name,
+        'produto': selectedProduct!.name,
+        'quantidade': quantity,
+      };
+
+      // 3. Chama o mock de emissão de NFC-e
+      final resultadoFiscal = await _fiscalService.emitirNFCe(dadosVenda);
+
+      // Fecha o modal de Loading
+      if (mounted) Navigator.pop(context); 
+
+      // 4. Analisa a resposta fiscal
+      if (resultadoFiscal.isSuccess) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AlertDialog(
+            title: const Text("Sucesso!"),
+            content: Text("Venda salva e NFC-e emitida.\n\nChave: ${resultadoFiscal.chaveNota}"),
+            actions: [
+              if (resultadoFiscal.pdfUrl != null)
+                TextButton(
+                  onPressed: () {
+                    // Chamada do método utilitário
+                    PdfHelper.abrirPdf(resultadoFiscal.pdfUrl!);
+                  },
+                  child: const Text("Visualizar PDF"),
+                ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context, true);
+                },
+                child: const Text("Concluir"),
+              ),
+            ],
           ),
         );
-
-        Navigator.pop(context, true);
+      } else {
+        // Falhou na emissão, mas a venda já foi salva no Supabase
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Venda salva, mas falha na NF: ${resultadoFiscal.errorMessage}")),
+          );
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Erro ao salvar venda: $e"),
-        ),
-      );
+      if (mounted) {
+        Navigator.pop(context); // Garante que o loading feche em caso de erro no Supabase
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro ao salvar venda: $e")),
+        );
+      }
     }
   }
 
@@ -168,9 +221,7 @@ class _AddVendasTelaState extends State<AddVendasTela> {
                 });
               },
             ),
-
             const SizedBox(height: 16),
-
             DropdownButtonFormField<Product>(
               initialValue: selectedProduct,
               decoration: const InputDecoration(
@@ -191,9 +242,7 @@ class _AddVendasTelaState extends State<AddVendasTela> {
                 });
               },
             ),
-
             const SizedBox(height: 16),
-
             TextField(
               controller: quantityController,
               keyboardType: TextInputType.number,
@@ -202,9 +251,7 @@ class _AddVendasTelaState extends State<AddVendasTela> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 16),
-
             TextField(
               controller: durationController,
               keyboardType: TextInputType.number,
@@ -213,14 +260,12 @@ class _AddVendasTelaState extends State<AddVendasTela> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 24),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: save,
-                child: const Text("Salvar Venda"),
+                child: const Text("Salvar Venda e Emitir NF"),
               ),
             ),
           ],
@@ -229,4 +274,3 @@ class _AddVendasTelaState extends State<AddVendasTela> {
     );
   }
 }
-
