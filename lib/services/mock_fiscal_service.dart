@@ -12,7 +12,7 @@ class MockFiscalService implements FiscalService {
 
     final chaveFalsa = '35260812345678901234650010000000011${Random().nextInt(900000) + 100000}';
 
-    // Gera o PDF realista de cupom fiscal com os dados passados da venda
+    // Gera o PDF
     final pdfFile = await DanfeGenerator.gerarDanfeMock(
       clienteNome: dadosVenda['cliente'] ?? "CONSUMIDOR NÃO IDENTIFICADO",
       produtoNome: dadosVenda['produto'] ?? "PRODUTO DIVERSO",
@@ -25,7 +25,7 @@ class MockFiscalService implements FiscalService {
       isSuccess: true,
       status: 'Issued',
       chaveNota: chaveFalsa,
-      // Retorna o caminho do arquivo PDF real criado localmente
+      // retorna o caminho do arquivo PDF q foi gerado localmente
       pdfUrl: pdfFile.path, 
     );
   }

@@ -9,7 +9,7 @@ import 'add_clientes_tela.dart';
 import 'edit_clientes_tela.dart';
 
 // Enum para os filtros
-enum FiltroCliente { todos, top5, visitantes }
+enum FiltroCliente { todos, top5, visitantes }  
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key});

@@ -23,7 +23,7 @@ class SupabaseService {
   }
 
   Future<List<Map<String, dynamic>>> getClients() async {
-    // Agora o app busca da View que criamos, que já traz o 'total_comprado' pronto!
+    
     final response = await supabase.from('clientes_com_vendas').select();
     return response;
   }
@@ -274,8 +274,8 @@ class SupabaseService {
   // METAS DO MÊS
   // =========================
 
-  // 1. Busca quantos itens já foram vendidos no mês ATUAL
- // 1. Busca o VALOR TOTAL vendido no mês ATUAL
+  // busca quantos itens já foram vendidos no mês ATUAL
+ // busca o VALOR TOTAL vendido no mês ATUAL
   Future<double> getValorVendidoMesAtual() async {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
@@ -296,14 +296,14 @@ class SupabaseService {
     return total;
   }
 
-  // 2. Busca a Meta Financeira (manual ou total do mês passado)
+  // busca a Meta Financeira (manual ou total do mês passado)
   Future<double> getMetaFinanceiraDoMes() async {
     final now = DateTime.now();
     final mesAnoAtual = "${now.month.toString().padLeft(2, '0')}/${now.year}";
 
     final manual = await supabase
         .from('metas_manuais')
-        .select('meta_valor') // Mude a coluna no seu banco se necessário
+        .select('meta_valor') // intermediar  com a coluna de valor
         .eq('mes_ano', mesAnoAtual)
         .maybeSingle();
 
@@ -327,10 +327,10 @@ class SupabaseService {
       totalMesPassado += (qtd * preco);
     }
 
-    return totalMesPassado > 0 ? totalMesPassado : 1000.0; // Meta padrão R$ 1000
+    return totalMesPassado > 0 ? totalMesPassado : 1000.0;  //meta financeira 1000
   }
 
-  // 3. Salva uma nova meta financeira manual
+  // salva uma nova meta financeira manual
     Future<void> salvarMetaFinanceiraManual(double novaMeta) async {
         final now = DateTime.now();
         final mesAnoAtual = "${now.month.toString().padLeft(2, '0')}/${now.year}";
@@ -342,11 +342,11 @@ class SupabaseService {
           }, onConflict: 'mes_ano');
         } catch (e) {
           print("Erro ao salvar meta: $e");
-          rethrow; // Isso ajuda a ver o erro no console do Flutter
+          rethrow; 
         }
       }
     Future<void> updateSale({
-      required String id, // Altere de int para String
+      required String id, 
       required String clientId,
       required String productId,
       required int quantity,
@@ -360,21 +360,21 @@ class SupabaseService {
             'quantity': quantity,
             'duration_days': durationDays,
           })
-          .eq('id', id); // Agora o id é String e vai bater com o UUID do Supabase
+          .eq('id', id); // id como String
     }
-      // Função para apagar um Produto
+      // funçao para apagar um Produto
     Future<void> deleteProduct(String id) async {
       await supabase.from('products').delete().eq('id', id);
     }
 
-    // Função para apagar um Cliente
+    // funçao para apagar um Cliente
     Future<void> deleteClient(String id) async {
       await supabase.from('clients').delete().eq('id', id);
     }
-    // Adicione este método dentro da classe SupabaseService
+    // 
     Future<List<Map<String, dynamic>>> getClientsWithSales() async {
       // .select('*, sales(*)') diz ao Supabase: 
-      // "Me traga todos os clientes e todas as vendas relacionadas a eles"
+      // traga todos os clientes e todas as vendas relacionadas dels
       return await supabase
           .from('clients')
           .select('*, sales(*)');
