@@ -1,8 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService {
-  final SupabaseClient supabase =
-      Supabase.instance.client;
+  final SupabaseClient supabase = Supabase.instance.client;
 
   // =========================
   // CLIENTES
@@ -16,14 +15,11 @@ class SupabaseService {
     await supabase.from('clients').insert({
       'name': name,
       'phone': phone,
-      'address': address?.trim().isEmpty ?? true
-          ? null
-          : address,
+      'address': address?.trim().isEmpty ?? true ? null : address,
     });
   }
 
   Future<List<Map<String, dynamic>>> getClients() async {
-    
     final response = await supabase.from('clientes_com_vendas').select();
     return response;
   }
@@ -39,12 +35,11 @@ class SupabaseService {
         .update({
           'name': name,
           'phone': phone,
-          'address': address?.trim().isEmpty ?? true
-              ? null
-              : address,
+          'address': address?.trim().isEmpty ?? true ? null : address,
         })
         .eq('id', id);
   }
+  
   // =========================
   // PRODUTOS
   // =========================
@@ -64,9 +59,7 @@ class SupabaseService {
   }
 
   Future<List<Map<String, dynamic>>> getProducts() async {
-    final response =
-        await supabase.from('products').select();
-
+    final response = await supabase.from('products').select();
     return List<Map<String, dynamic>>.from(response);
   }
 
@@ -88,7 +81,6 @@ class SupabaseService {
         .eq('id', id);
   }
 
-
   // =========================
   // VENDAS
   // =========================
@@ -99,52 +91,46 @@ class SupabaseService {
     required int quantity,
     required int durationDays,
   }) async {
-    await supabase
-        .from('sales')
-        .insert({
-          'client_id': clientId,
-          'product_id': productId,
-          'quantity': quantity,
-          'duration_days': durationDays,
-          'sale_date': DateTime.now().toIso8601String(),
-        });
+    await supabase.from('sales').insert({
+      'client_id': clientId,
+      'product_id': productId,
+      'quantity': quantity,
+      'duration_days': durationDays,
+      'sale_date': DateTime.now().toIso8601String(),
+    });
   }
 
-    Future<List<Map<String, dynamic>>> getSales() async {
-        final response = await supabase
-            .from('sales')
-            .select('''
-              *,
-              clients!fk_sales_client(*),
-              products!fk_sales_product(*)
-            ''')
-            .neq('status', 'concluido');
+  Future<List<Map<String, dynamic>>> getSales() async {
+    final response = await supabase
+        .from('sales')
+        .select('''
+          *,
+          clients!fk_sales_client(*),
+          products!fk_sales_product(*)
+        ''')
+        .neq('status', 'concluido');
 
-        return List<Map<String, dynamic>>.from(response);
-      }
+    return List<Map<String, dynamic>>.from(response);
+  }
 
-  // Função para apagar um registo de Venda
-    Future<void> deleteSale(String saleId) async {
-      await supabase.from('sales').delete().eq('id', saleId);
-    }
+  Future<void> deleteSale(String saleId) async {
+    await supabase.from('sales').delete().eq('id', saleId);
+  }
 
   // =========================
   // DASHBOARD
   // =========================
 
   Future<int> getActiveClients() async {
-    final sales =
-        await supabase.from('sales').select('client_id');
-
-    final uniqueClients = sales
-        .map((e) => e['client_id'])
-        .toSet();
-
+    final sales = await supabase.from('sales').select('client_id');
+    final uniqueClients = sales.map((e) => e['client_id']).toSet();
     return uniqueClients.length;
   }
 
-  Future<double> getMonthlyRevenue() async {
-    final now = DateTime.now();
+  // ATUALIZADO PARA RECEBER MÊS E ANO
+  Future<double> getMonthlyRevenue({required int mes, required int ano}) async {
+    final startOfMonth = DateTime(ano, mes, 1).toIso8601String();
+    final endOfMonth = DateTime(ano, mes + 1, 0, 23, 59, 59).toIso8601String();
 
     final sales = await supabase
         .from('sales')
@@ -152,20 +138,15 @@ class SupabaseService {
           quantity,
           sale_date,
           products(price)
-        ''');
+        ''')
+        .gte('sale_date', startOfMonth)
+        .lte('sale_date', endOfMonth);
 
     double total = 0;
 
     for (final sale in sales) {
-      final saleDate =
-          DateTime.parse(sale['sale_date']);
-
-      if (saleDate.month == now.month &&
-          saleDate.year == now.year) {
-        total +=
-            (sale['quantity'] as int) *
-            (sale['products']['price'] as num)
-                .toDouble();
+      if (sale['products'] != null) {
+        total += (sale['quantity'] as int) * (sale['products']['price'] as num).toDouble();
       }
     }
 
@@ -173,40 +154,23 @@ class SupabaseService {
   }
 
   Future<int> getUrgentReminders() async {
-    final sales = await supabase
-        .from('sales')
-        .select();
-
+    final sales = await supabase.from('sales').select();
     int count = 0;
 
     for (final sale in sales) {
-      final saleDate =
-          DateTime.parse(sale['sale_date']);
-
-      final durationDays =
-          sale['duration_days'] as int;
-
-      final reminderDate =
-          saleDate.add(
-        Duration(days: durationDays),
-      );
-
-      final daysLeft =
-          reminderDate
-              .difference(DateTime.now())
-              .inDays;
+      final saleDate = DateTime.parse(sale['sale_date']);
+      final durationDays = sale['duration_days'] as int;
+      final reminderDate = saleDate.add(Duration(days: durationDays));
+      final daysLeft = reminderDate.difference(DateTime.now()).inDays;
 
       if (daysLeft <= 3 && daysLeft >= 0) {
         count++;
       }
     }
-
     return count;
   }
  
-  Future<List<Map<String, dynamic>>> getSalesByClient(
-    String clientId,
-  ) async {
+  Future<List<Map<String, dynamic>>> getSalesByClient(String clientId) async {
     final response = await supabase
         .from('sales')
         .select('''
@@ -214,55 +178,30 @@ class SupabaseService {
           products!fk_sales_product(*)
         ''')
         .eq('client_id', clientId)
-        .order(
-          'sale_date',
-          ascending: false,
-        );
+        .order('sale_date', ascending: false);
 
-    return List<Map<String, dynamic>>.from(
-      response,
-    );
+    return List<Map<String, dynamic>>.from(response);
   }
 
-  Future<double> getNextMonthProjection() async {
-    final sales = await supabase
-        .from('sales')
-        .select('''
-          quantity,
-          sale_date,
-          duration_days,
-          products!fk_sales_product(price)
-        ''');
-
-    final now = DateTime.now();
-
-    final nextMonth = now.month == 12 ? 1 : now.month + 1;
-
-    final nextYear = now.month == 12
-        ? now.year + 1
-        : now.year;
+  // ATUALIZADO PARA RECEBER MÊS E ANO (Projeção do mês fornecido)
+  Future<double> getNextMonthProjection({required int mes, required int ano}) async {
+    final sales = await supabase.from('sales').select('''
+      quantity,
+      sale_date,
+      duration_days,
+      products!fk_sales_product(price)
+    ''');
 
     double total = 0;
 
     for (final sale in sales) {
-      final saleDate =
-          DateTime.parse(sale['sale_date']);
+      final saleDate = DateTime.parse(sale['sale_date']);
+      final reminderDate = saleDate.add(Duration(days: sale['duration_days']));
 
-      final reminderDate = saleDate.add(
-        Duration(
-          days: sale['duration_days'],
-        ),
-      );
-
-      if (reminderDate.month == nextMonth &&
-          reminderDate.year == nextYear) {
-        final preco =
-            (sale['products']['price'] as num)
-                .toDouble();
-
-        final quantidade =
-            sale['quantity'] as int;
-
+      // Verifica se a data de lembrete (recompra) cai no mês e ano informados
+      if (reminderDate.month == mes && reminderDate.year == ano) {
+        final preco = (sale['products']['price'] as num).toDouble();
+        final quantidade = sale['quantity'] as int;
         total += preco * quantidade;
       }
     }
@@ -274,12 +213,10 @@ class SupabaseService {
   // METAS DO MÊS
   // =========================
 
-  // busca quantos itens já foram vendidos no mês ATUAL
- // busca o VALOR TOTAL vendido no mês ATUAL
-  Future<double> getValorVendidoMesAtual() async {
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
-    final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
+  // ATUALIZADO PARA RECEBER MÊS E ANO
+  Future<double> getValorVendidoMesAtual({required int mes, required int ano}) async {
+    final startOfMonth = DateTime(ano, mes, 1).toIso8601String();
+    final endOfMonth = DateTime(ano, mes + 1, 0, 23, 59, 59).toIso8601String();
 
     final response = await supabase
         .from('sales')
@@ -289,30 +226,31 @@ class SupabaseService {
 
     double total = 0;
     for (var row in response) {
-      final qtd = (row['quantity'] as num).toInt();
-      final preco = (row['products']['price'] as num).toDouble();
-      total += (qtd * preco);
+      if (row['products'] != null) {
+        final qtd = (row['quantity'] as num).toInt();
+        final preco = (row['products']['price'] as num).toDouble();
+        total += (qtd * preco);
+      }
     }
     return total;
   }
 
-  // busca a Meta Financeira (manual ou total do mês passado)
-  Future<double> getMetaFinanceiraDoMes() async {
-    final now = DateTime.now();
-    final mesAnoAtual = "${now.month.toString().padLeft(2, '0')}/${now.year}";
+  // ATUALIZADO PARA RECEBER MÊS E ANO
+  Future<double> getMetaFinanceiraDoMes({required int mes, required int ano}) async {
+    final mesAnoSelecionado = "${mes.toString().padLeft(2, '0')}/$ano";
 
     final manual = await supabase
         .from('metas_manuais')
-        .select('meta_valor') // intermediar  com a coluna de valor
-        .eq('mes_ano', mesAnoAtual)
+        .select('meta_valor')
+        .eq('mes_ano', mesAnoSelecionado)
         .maybeSingle();
 
     if (manual != null) {
       return (manual['meta_valor'] as num).toDouble();
     }
 
-    final startOfLastMonth = DateTime(now.year, now.month - 1, 1).toIso8601String();
-    final endOfLastMonth = DateTime(now.year, now.month, 0, 23, 59, 59).toIso8601String();
+    final startOfLastMonth = DateTime(ano, mes - 1, 1).toIso8601String();
+    final endOfLastMonth = DateTime(ano, mes, 0, 23, 59, 59).toIso8601String();
 
     final response = await supabase
         .from('sales')
@@ -322,62 +260,121 @@ class SupabaseService {
 
     double totalMesPassado = 0;
     for (var row in response) {
-      final qtd = (row['quantity'] as num).toInt();
-      final preco = (row['products']['price'] as num).toDouble();
-      totalMesPassado += (qtd * preco);
+      if(row['products'] != null) {
+        final qtd = (row['quantity'] as num).toInt();
+        final preco = (row['products']['price'] as num).toDouble();
+        totalMesPassado += (qtd * preco);
+      }
     }
 
-    return totalMesPassado > 0 ? totalMesPassado : 1000.0;  //meta financeira 1000
+    return totalMesPassado > 0 ? totalMesPassado : 1000.0;
   }
 
-  // salva uma nova meta financeira manual
-    Future<void> salvarMetaFinanceiraManual(double novaMeta) async {
-        final now = DateTime.now();
-        final mesAnoAtual = "${now.month.toString().padLeft(2, '0')}/${now.year}";
+  // ATUALIZADO PARA RECEBER MÊS E ANO
+  Future<void> salvarMetaFinanceiraManual(double novaMeta, {required int mes, required int ano}) async {
+    final mesAnoSelecionado = "${mes.toString().padLeft(2, '0')}/$ano";
 
-        try {
-          await supabase.from('metas_manuais').upsert({
-            'mes_ano': mesAnoAtual,
-            'meta_valor': novaMeta,
-          }, onConflict: 'mes_ano');
-        } catch (e) {
-          print("Erro ao salvar meta: $e");
-          rethrow; 
+    try {
+      await supabase.from('metas_manuais').upsert({
+        'mes_ano': mesAnoSelecionado,
+        'meta_valor': novaMeta,
+      }, onConflict: 'mes_ano');
+    } catch (e) {
+      print("Erro ao salvar meta: $e");
+      rethrow; 
+    }
+  }
+
+  Future<void> updateSale({
+    required String id, 
+    required String clientId,
+    required String productId,
+    required int quantity,
+    required int durationDays,
+  }) async { 
+    await supabase
+        .from('sales')
+        .update({
+          'client_id': clientId,
+          'product_id': productId,
+          'quantity': quantity,
+          'duration_days': durationDays,
+        })
+        .eq('id', id);
+  }
+
+  Future<void> deleteProduct(String id) async {
+    await supabase.from('products').delete().eq('id', id);
+  }
+
+  Future<void> deleteClient(String id) async {
+    await supabase.from('clients').delete().eq('id', id);
+  }
+    
+  Future<List<Map<String, dynamic>>> getClientsWithSales() async {
+    return await supabase
+        .from('clients')
+        .select('*, sales(*)');
+  }
+
+  Future<Map<String, dynamic>> getRelatorioAvancado(DateTime dataInicio, DateTime dataFim) async {
+    try {
+      final inicio = DateTime(dataInicio.year, dataInicio.month, dataInicio.day, 0, 0, 0).toIso8601String();
+      final fim = DateTime(dataFim.year, dataFim.month, dataFim.day, 23, 59, 59).toIso8601String();
+
+      // NOTA: Como a tua tabela parece chamar-se 'sales' e 'products', ajustei a query do relatório
+      // para utilizar as tabelas que tu já tens no código
+      final vendasResponse = await supabase
+          .from('sales')
+          .select('*, products!fk_sales_product(nome:name, preco:price)')
+          .gte('sale_date', inicio)
+          .lte('sale_date', fim);
+
+      double totalFaturamento = 0.0;
+      int qtdPedidos = vendasResponse.length;
+      Map<String, Map<String, dynamic>> agrupado = {};
+
+      for (var venda in vendasResponse) {
+        // Cálculo do Faturamento
+        double preco = 0.0;
+        if (venda['products'] != null) {
+          preco = (venda['products']['preco'] as num).toDouble();
+        }
+        int qtd = (venda['quantity'] as num).toInt();
+        double valorTotalItem = preco * qtd;
+        
+        totalFaturamento += valorTotalItem;
+
+        // Agrupamento de Produtos Mais Vendidos
+        String nomeProduto = venda['products'] != null ? venda['products']['nome'] : 'Desconhecido';
+        
+        if (agrupado.containsKey(nomeProduto)) {
+          agrupado[nomeProduto]!['quantidade'] += qtd;
+          agrupado[nomeProduto]!['total'] += valorTotalItem;
+        } else {
+          agrupado[nomeProduto] = {
+            'nome': nomeProduto,
+            'quantidade': qtd,
+            'total': valorTotalItem,
+          };
         }
       }
-    Future<void> updateSale({
-      required String id, 
-      required String clientId,
-      required String productId,
-      required int quantity,
-      required int durationDays,
-    }) async { 
-      await supabase
-          .from('sales')
-          .update({
-            'client_id': clientId,
-            'product_id': productId,
-            'quantity': quantity,
-            'duration_days': durationDays,
-          })
-          .eq('id', id); // id como String
-    }
-      // funçao para apagar um Produto
-    Future<void> deleteProduct(String id) async {
-      await supabase.from('products').delete().eq('id', id);
-    }
 
-    // funçao para apagar um Cliente
-    Future<void> deleteClient(String id) async {
-      await supabase.from('clients').delete().eq('id', id);
+      List<Map<String, dynamic>> topProdutos = agrupado.values.toList();
+      topProdutos.sort((a, b) => (b['quantidade'] as int).compareTo(a['quantidade'] as int));
+
+      return {
+        'faturamento': totalFaturamento,
+        'qtd_pedidos': qtdPedidos,
+        'top_produtos': topProdutos,
+      };
+    } catch (e) {
+      print('Erro ao obter relatório avançado: $e');
+      return {
+        'faturamento': 0.0,
+        'qtd_pedidos': 0,
+        'top_produtos': [],
+      };
     }
-    // 
-    Future<List<Map<String, dynamic>>> getClientsWithSales() async {
-      // .select('*, sales(*)') diz ao Supabase: 
-      // traga todos os clientes e todas as vendas relacionadas dels
-      return await supabase
-          .from('clients')
-          .select('*, sales(*)');
-    }
-      
+  }
 }
