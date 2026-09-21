@@ -290,7 +290,7 @@ class _DashboardTelaState extends State<DashboardTela> {
       ),
     );
   }
-
+//323
   Widget dashboardCard({required String title, required String value, required IconData icon, required Color color}) {
     return Container(
       padding: const EdgeInsets.all(20),
