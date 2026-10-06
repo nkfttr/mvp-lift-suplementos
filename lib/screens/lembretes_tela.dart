@@ -274,12 +274,31 @@ class _LembretesTelaState extends State<LembretesTela> {
                                           ),
                                         );
 
-                                        // 2. Se ao voltar a tela sinalizar sucesso, recarrega a lista
+                                        // 2. sse ao voltar a tela sinalizar sucesso, recarrega a lista
                                         if (atualizou == true) {
                                           carregarLembretes();
                                         }
                                       } else if (value == 'feito') {
-                                        // Lógica para marcar como feito...
+                                        try {
+                                          // 1. attualiza o status no supabase (usando o id da venda)
+                                          await _service.markSaleAsCompleted(venda['id']);
+
+                                          // 2. Ffedback visual para o usuário
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Concluído com sucesso!')),
+                                            );
+                                          }
+
+                                          // 3. Recarregra a lista para sumir com o card dsa tela
+                                          carregarLembretes(); 
+                                        } catch (e) {
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Erro ao atualizar: $e')),
+                                            );
+                                          }
+                                        }
                                       }
                                     },
                                     itemBuilder: (context) => [

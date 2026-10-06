@@ -377,4 +377,10 @@ class SupabaseService {
       };
     }
   }
+  Future<void> markSaleAsCompleted(String saleId) async {
+  await supabase
+      .from('sales')
+      .update({'status': 'concluido'})
+      .eq('id', saleId);
+}
 }
