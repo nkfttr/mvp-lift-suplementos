@@ -2,7 +2,7 @@ import 'package:commerce_mvp/screens/add_vendas_tela.dart';
 import 'package:commerce_mvp/screens/relatorio_financeiro_tela.dart'; // Importe a nova tela
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
+import 'package:commerce_mvp/screens/dre_tela.dart'; // <-- Adicione esta linha
 import '../providers/theme_provider.dart';
 import '../services/supabase_service.dart';
 
@@ -133,6 +133,16 @@ class _DashboardTelaState extends State<DashboardTela> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const RelatorioFinanceiroTela()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.request_quote, color: Colors.white),
+            tooltip: "Demonstrativo (DRE)",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DreTela()),
               );
             },
           ),

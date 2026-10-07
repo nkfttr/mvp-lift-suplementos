@@ -47,10 +47,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
     });
 
     try {
-      // CORRIGIDO: Agora chama o método correto 'addProduct' do seu SupabaseService
+      
       await SupabaseService().addProduct(
         name: name,
         price: price,
+        costPrice: price, // <-- Adiciona o preço de custo
         quantity: quantity,
         imagePath: imageUrl.isEmpty ? null : imageUrl, // Salva a URL da imagem
       );

@@ -20,7 +20,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
   late TextEditingController nameController;
   late TextEditingController priceController;
   late TextEditingController quantityController;
-  // NOVO: Controller para a URL da imagem
+  late TextEditingController costPriceController; // Controller para o preço de custo
   late TextEditingController imageUrlController; 
 
   bool loading = false;
@@ -32,7 +32,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
     nameController = TextEditingController(text: widget.product.name);
     priceController = TextEditingController(text: widget.product.price.toString());
     quantityController = TextEditingController(text: widget.product.quantity.toString());
-    // Inicializa o controller com a URL da imagem que já está salva no banco
+    costPriceController = TextEditingController(text: widget.product.costPrice.toString());
     imageUrlController = TextEditingController(text: widget.product.imagePath ?? '');
   }
 
@@ -41,6 +41,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
     nameController.dispose();
     priceController.dispose();
     quantityController.dispose();
+    costPriceController.dispose();
     imageUrlController.dispose();
     super.dispose();
   }
@@ -49,6 +50,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
     final name = nameController.text.trim();
     final price = double.tryParse(priceController.text) ?? 0;
     final quantity = int.tryParse(quantityController.text) ?? 0;
+    final costPrice = double.tryParse(costPriceController.text) ?? 0;
     final imageUrl = imageUrlController.text.trim();
 
     if (name.isEmpty || price <= 0 || quantity < 0) {
@@ -66,13 +68,13 @@ class _EditProductScreenState extends State<EditProductScreen> {
     });
 
     try {
-      // CORRIGIDO: Agora chama diretamente o SupabaseService para persistir a alteração
       await _service.updateProduct(
         id: widget.product.id,
         name: name,
         price: price,
         quantity: quantity,
-        imagePath: imageUrl.isEmpty ? null : imageUrl, // Atualiza a URL
+        costPrice: costPrice, // Envia o preço de custo capturado
+        imagePath: imageUrl.isEmpty ? null : imageUrl,
       );
 
       if (mounted) {
@@ -82,7 +84,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context, true); // Retorna sinalizando que houve alteração
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -126,7 +128,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // CARD PREVIEW VISUAL DA IMAGEM ATUALIZADA EM TEMPO REAL
+                  // PREVIEW DA IMAGEM
                   Container(
                     width: double.infinity,
                     height: 180,
@@ -173,7 +175,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
                   const SizedBox(height: 24),
 
-                  // CAMPO PARA EDITAR A URL DA IMAGEM
+                  // URL DA IMAGEM
                   TextField(
                     controller: imageUrlController,
                     decoration: const InputDecoration(
@@ -186,6 +188,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
                   const SizedBox(height: 16),
 
+                  // NOME DO PRODUTO
                   TextField(
                     controller: nameController,
                     decoration: const InputDecoration(
@@ -197,11 +200,12 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
                   const SizedBox(height: 16),
 
+                  // PREÇO DE VENDA
                   TextField(
                     controller: priceController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(
-                      labelText: "Preço (R\$)",
+                      labelText: "Preço de Venda (R\$)",
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.attach_money),
                     ),
@@ -209,6 +213,20 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
                   const SizedBox(height: 16),
 
+                  // PREÇO DE CUSTO (NOVO CAMPO ADICIONADO)
+                  TextField(
+                    controller: costPriceController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: "Preço de Custo / Compra (R\$)",
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.money_off),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // QUANTIDADE EM ESTOQUE
                   TextField(
                     controller: quantityController,
                     keyboardType: TextInputType.number,
@@ -221,6 +239,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
                   const SizedBox(height: 24),
 
+                  // BOTÃO DE SALVAR
                   SizedBox(
                     width: double.infinity,
                     height: 50,

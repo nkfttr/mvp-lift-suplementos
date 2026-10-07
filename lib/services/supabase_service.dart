@@ -47,12 +47,14 @@ class SupabaseService {
   Future<void> addProduct({
     required String name,
     required double price,
+    required double costPrice, // <-- Novo parâmetro
     required int quantity,
     String? imagePath,
   }) async {
     await supabase.from('products').insert({
       'name': name,
       'price': price,
+      'cost_price': costPrice, // <-- Novo campo
       'quantity': quantity,
       'image_path': imagePath,
     });
@@ -67,6 +69,7 @@ class SupabaseService {
     required String id,
     required String name,
     required double price,
+    required double costPrice, // <-- Novo parâmetro
     required int quantity,
     String? imagePath,
   }) async {
@@ -377,10 +380,90 @@ class SupabaseService {
       };
     }
   }
-  Future<void> markSaleAsCompleted(String saleId) async {
-  await supabase
-      .from('sales')
-      .update({'status': 'concluido'})
-      .eq('id', saleId);
-}
+    Future<void> markSaleAsCompleted(String saleId) async {
+    await supabase
+        .from('sales')
+        .update({'status': 'concluido'})
+        .eq('id', saleId);
+  }
+  Future<Map<String, double>> getDRE({required int mes, required int ano}) async {
+    final inicio = DateTime(ano, mes, 1).toIso8601String();
+    final fim = DateTime(ano, mes + 1, 0, 23, 59, 59).toIso8601String();
+
+    // 1. Busca todas as vendas do mês
+    final salesResponse = await supabase
+        .from('sales')
+        .select('product_id, quantity, sale_date')
+        .gte('sale_date', inicio)
+        .lte('sale_date', fim);
+
+    // 2. Busca todos os produtos para mapear preço de venda e custo
+    final productsResponse = await supabase
+        .from('products')
+        .select('id, price, cost_price');
+
+    final Map<String, Map<String, double>> produtosMap = {};
+    for (var p in productsResponse) {
+      produtosMap[p['id'].toString()] = {
+        'price': (p['price'] as num?)?.toDouble() ?? 0.0,
+        'cost_price': (p['cost_price'] as num?)?.toDouble() ?? 0.0,
+      };
+    }
+
+    double receitaBruta = 0.0;
+    double cmv = 0.0;
+
+    // 3. Calcula a Receita Bruta e o CMV (Custo dos Produtos)
+    for (var sale in salesResponse) {
+      final productId = sale['product_id'].toString();
+      final qtd = (sale['quantity'] as num?)?.toInt() ?? 0;
+
+      if (produtosMap.containsKey(productId)) {
+        final price = produtosMap[productId]!['price']!;
+        final costPrice = produtosMap[productId]!['cost_price']!;
+
+        receitaBruta += price * qtd;
+        cmv += costPrice * qtd;
+      }
+    }
+
+    // 4. CÁLCULO DO IMPOSTO: 4% sobre a Receita Bruta
+    double impostos = receitaBruta * 0.04;
+
+    // 5. Busca as Despesas Operacionais (excluindo impostos da tabela para não duplicar)
+    double despesasOperacionais = 0.0;
+
+    try {
+      final expensesResponse = await supabase
+          .from('expenses')
+          .select('amount, category')
+          .gte('expense_date', inicio)
+          .lte('expense_date', fim);
+
+      for (var exp in expensesResponse) {
+        double valor = (exp['amount'] as num?)?.toDouble() ?? 0.0;
+        // Adiciona apenas se for despesa operacional (não adiciona impostos manuais)
+        if (exp['category'] != 'Imposto') {
+          despesasOperacionais += valor;
+        }
+      }
+    } catch (e) {
+      // Tabela de despesas opcional ou vazia
+    }
+
+    // 6. Fechamento das linhas do DRE
+    double receitaLiquida = receitaBruta - impostos;
+    double lucroBruto = receitaLiquida - cmv;
+    double lucroLiquido = lucroBruto - despesasOperacionais;
+
+    return {
+      'receitaBruta': receitaBruta,
+      'impostos': impostos,
+      'receitaLiquida': receitaLiquida,
+      'cmv': cmv,
+      'lucroBruto': lucroBruto,
+      'despesasOperacionais': despesasOperacionais,
+      'lucroLiquido': lucroLiquido,
+    };
+  }
 }

@@ -67,6 +67,7 @@ class _EditLembreteTelaState extends State<EditLembreteTela> {
           name: e['name'],
           price: (e['price'] as num).toDouble(),
           quantity: e['quantity'],
+          costPrice: e['cost_price'] ?? '0.0',
           imagePath: e['image_path'],
         );
       }).toList();

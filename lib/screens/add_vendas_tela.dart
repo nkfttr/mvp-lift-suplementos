@@ -58,6 +58,7 @@ class _AddVendasTelaState extends State<AddVendasTela> {
           name: e['name'],
           price: (e['price'] as num).toDouble(),
           quantity: e['quantity'],
+          costPrice: e['cost_price'] ?? '0.0', // <-- Novo campo para o preço de custo
           imagePath: e['image_path'],
         );
       }).toList();
@@ -144,8 +145,8 @@ class _AddVendasTelaState extends State<AddVendasTela> {
               if (resultadoFiscal.pdfUrl != null)
                 TextButton(
                   onPressed: () {
-                    // Chamada do método utilitário
-                    PdfHelper.abrirPdf(resultadoFiscal.pdfUrl!);
+                      // Pontext para o dfHelper tratar a abertura na Web ou Mobile
+                      PdfHelper.abrirPdf(context, resultadoFiscal.pdfUrl!);
                   },
                   child: const Text("Visualizar PDF"),
                 ),
