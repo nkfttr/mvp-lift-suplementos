@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'providers/app_provedor.dart';
-import 'providers/theme_provider.dart';
-import 'screens/tela_principal.dart';
+import 'lib/providers/app_provedor.dart';
+import 'lib/providers/theme_provider.dart';
+import 'lib/screens/tela_principal.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
